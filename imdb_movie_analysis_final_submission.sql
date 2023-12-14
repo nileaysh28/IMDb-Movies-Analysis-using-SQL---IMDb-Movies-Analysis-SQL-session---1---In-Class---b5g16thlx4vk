@@ -483,9 +483,10 @@ limit 9;
 
 -- Based on the analysis, provide recommendations for the types of content Bolly movies should focus on producing.
 **Result:--
+/*Output format:
 Focus_Genre  | Focus_Month |    Director    |  Actors   |      Actress        |    Production Company   |
 -------------|-------------|----------------|-----------|---------------------|-------------------------|
-   Drama     |    July     |   A.L. Vijay   | Mammootty | Parvathy Thiruvothu | Epiphany Entertainments |
+   Drama     |    July     |   A.L. Vijay   | Mammootty | Parvathy Thiruvothu | Epiphany Entertainments |*/
 
 with a1 as
 ( 
