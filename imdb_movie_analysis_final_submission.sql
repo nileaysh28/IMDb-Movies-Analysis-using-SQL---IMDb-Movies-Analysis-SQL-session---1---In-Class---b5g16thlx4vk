@@ -486,3 +486,92 @@ limit 9;
 Focus_Genre  | Focus_Month |    Director    |  Actors   |      Actress        |    Production Company   |
 -------------|-------------|----------------|-----------|---------------------|-------------------------|
    Drama     |    July     |   A.L. Vijay   | Mammootty | Parvathy Thiruvothu | Epiphany Entertainments |
+
+with a1 as
+( 
+	select genre.genre as Focus_Genre, rank() over(order by (count(genre.movie_id)) desc) as rank1, count(genre.movie_id) as hit_movies from genre
+	join ratings on
+	ratings.movie_id = genre.movie_id
+	where avg_rating >= 7
+	group by genre
+),
+a2 as
+(
+	select count(id), Month(date_published) as Focus_Month, rank() over(order by (count(id)) asc) as rank2 from movies
+    group by month(date_published)
+),
+a3 as
+(
+	select count(movies) as top_movies_actors, Top_actor, row_number() over(order by count(movies) desc) as rank3
+    from
+	(
+		select m.id as movies, n.name as Top_actor from movies m
+		join ratings on
+		m.id = ratings.movie_id
+        join names n on
+        m.id = n.known_for_movies
+		where languages like '%hindi%'
+		and avg_rating > 8
+	)t
+    group by Top_actor
+),
+a4 as
+(
+	select row_number() over(order by count(movie_id) desc, sum(total_votes) desc) as rank4,
+	name as Top_actress, count(movie_id) as superhit_movies_number, sum(total_votes) as final_votes from
+	(
+		select r.total_votes, g.genre, g.movie_id, rm.name_id, n.name from movies m
+		join genre g on g.movie_id = m.id
+		join ratings r on r.movie_id = m.id
+		join role_mapping rm on m.id = rm.movie_id
+		join names n on n.id = rm.name_id
+		where g.genre = 'Drama'
+		and category = 'actress'
+		and avg_rating > 8
+	)t
+	group by Top_actress
+),
+a5 as
+(
+	select production_company as Production_company,count(id) as movie_count,
+	row_number() over(order by count(id) desc) as rank5 from movies
+	where languages like '%hindi%'
+	and id in (Select movie_id from ratings where avg_rating > 8)
+	and production_company is not null
+	group by production_company
+	order by movie_count desc
+),
+a6 as
+(
+	select t.name_id, n.name as Director_name, t.movie_count, rank() over(order by movie_count desc,avg_rating1 desc) as rank6 from
+	(
+		select dm.name_id,
+		count(dm.movie_id) as movie_count,
+		avg(m.duration) as avg_duration,
+		round(avg(r.avg_rating),2) as avg_rating1,
+		sum(r.total_votes) as sum_votes,
+		min(r.avg_rating) as min_rating,
+		max(r.avg_rating) as max_rating,
+		sum(m.duration) as total_duration
+		from director_mapping dm
+		join ratings r on r.movie_id = dm.movie_id
+		join movies m on dm.movie_id = m.id
+		join names n on dm.name_id = n.id
+		group by dm.name_id
+	)t
+	join names n on n.id = t.name_id
+	order by t.movie_count desc, t.avg_rating1 desc, t.sum_votes
+)
+select Focus_Genre, Focus_Month, Top_actor, Top_actress, Production_company, Director_name
+from a1
+join a2 on
+a1.rank1 = a2.rank2
+join a3 on
+a1.rank1 = a3.rank3
+join a4
+on a1.rank1 = a4.rank4
+join a5
+on a1.rank1 = a5.rank5
+join a6
+on a1.rank1 = a6.rank6
+where rank1 = '1';
